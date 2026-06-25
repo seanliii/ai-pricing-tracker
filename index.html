@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 产品订阅定价追踪器</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; background:linear-gradient(135deg,#0f172a 0%,#1e293b 50%,#0f172a 100%); color:#e2e8f0; min-height:100vh; }
+.container { max-width:1200px; margin:0 auto; padding:24px; }
+header { text-align:center; margin-bottom:32px; padding:32px 0; }
+header h1 { font-size:2.5rem; font-weight:700; background:linear-gradient(135deg,#60a5fa,#a78bfa); -webkit-background-clip:text; -webkit-text-fill-color:transparent; margin-bottom:8px; }
+header p { color:#94a3b8; font-size:1.1rem; }
+
+.stats-bar { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; margin-bottom:24px; }
+.stat-card { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:16px; text-align:center; transition:all 0.3s; }
+.stat-card:hover { background:rgba(255,255,255,0.08); transform:translateY(-2px); }
+.stat-value { font-size:1.8rem; font-weight:700; color:#60a5fa; }
+.stat-label { font-size:0.8rem; color:#94a3b8; margin-top:4px; }
+
+.controls { display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between; margin-bottom:24px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:16px; }
+.filter-group { display:flex; gap:8px; flex-wrap:wrap; }
+.filter-btn { padding:6px 14px; border-radius:20px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.05); color:#94a3b8; font-size:0.85rem; cursor:pointer; transition:all 0.2s; }
+.filter-btn:hover, .filter-btn.active { background:rgba(96,165,250,0.2); border-color:rgba(96,165,250,0.4); color:#60a5fa; }
+.view-toggle { display:flex; gap:4px; }
+.view-btn { padding:6px 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.05); color:#94a3b8; font-size:0.85rem; cursor:pointer; transition:all 0.2s; }
+.view-btn.active { background:rgba(96,165,250,0.2); border-color:rgba(96,165,250,0.4); color:#60a5fa; }
+.search-box { position:relative; flex:1; min-width:200px; max-width:300px; }
+.search-box input { width:100%; padding:8px 12px 8px 36px; border-radius:8px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.05); color:#e2e8f0; font-size:0.9rem; outline:none; }
+.search-box input::placeholder { color:#64748b; }
+.search-box::before { content:"🔍"; position:absolute; left:10px; top:50%; transform:translateY(-50%); font-size:0.9rem; }
+
+.cards-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:16px; }
+.pricing-card { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08); border-radius:16px; padding:20px; transition:all 0.3s; cursor:pointer; position:relative; overflow:hidden; display:flex; flex-direction:column; }
+.pricing-card:hover { background:rgba(255,255,255,0.08); transform:translateY(-4px); border-color:rgba(96,165,250,0.3); }
+.pricing-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg,#60a5fa,#a78bfa); opacity:0; transition:opacity 0.3s; }
+.pricing-card:hover::before { opacity:1; }
+.card-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; }
+.card-name { font-size:1.1rem; font-weight:600; color:#f1f5f9; }
+.card-company { font-size:0.75rem; color:#64748b; margin-top:2px; }
+.card-type { padding:3px 10px; border-radius:12px; font-size:0.7rem; font-weight:500; }
+.type-chat { background:rgba(96,165,250,0.15); color:#60a5fa; }
+.type-code { background:rgba(34,197,94,0.15); color:#22c55e; }
+.type-search { background:rgba(249,115,22,0.15); color:#f97316; }
+.type-image { background:rgba(236,72,153,0.15); color:#ec4899; }
+.type-video { background:rgba(168,85,247,0.15); color:#a855f7; }
+.type-music { background:rgba(14,165,233,0.15); color:#0ea5e9; }
+.type-voice { background:rgba(234,179,8,0.15); color:#eab308; }
+.type-office { background:rgba(99,102,241,0.15); color:#6366f1; }
+.type-writing { background:rgba(239,68,68,0.15); color:#ef4444; }
+.card-price { font-size:1.6rem; font-weight:700; color:#60a5fa; margin:12px 0; }
+.card-price span { font-size:0.85rem; font-weight:400; color:#64748b; }
+.card-features { font-size:0.85rem; color:#94a3b8; line-height:1.6; margin-bottom:12px; flex:1; }
+.card-footer { display:flex; justify-content:space-between; align-items:center; padding-top:12px; border-top:1px solid rgba(255,255,255,0.05); }
+.card-annual { font-size:0.8rem; color:#64748b; }
+.card-link { font-size:0.8rem; color:#60a5fa; text-decoration:none; }
+.card-link:hover { text-decoration:underline; }
+
+.table-view { display:none; }
+.table-view.active { display:block; }
+.pricing-table { width:100%; border-collapse:collapse; }
+.pricing-table th { background:rgba(255,255,255,0.08); padding:12px 16px; text-align:left; font-size:0.85rem; font-weight:600; color:#94a3b8; border-bottom:1px solid rgba(255,255,255,0.1); }
+.pricing-table td { padding:12px 16px; border-bottom:1px solid rgba(255,255,255,0.05); font-size:0.9rem; }
+.pricing-table tr:hover td { background:rgba(255,255,255,0.03); cursor:pointer; }
+.td-name { font-weight:600; color:#f1f5f9; }
+.td-company { font-size:0.8rem; color:#64748b; }
+.td-price { font-weight:700; color:#60a5fa; }
+.td-type { padding:3px 10px; border-radius:12px; font-size:0.75rem; font-weight:500; display:inline-block; }
+
+.modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:100; align-items:center; justify-content:center; padding:24px; }
+.modal-overlay.active { display:flex; }
+.modal { background:#1e293b; border:1px solid rgba(255,255,255,0.1); border-radius:16px; max-width:560px; width:100%; max-height:85vh; overflow-y:auto; position:relative; }
+.modal-header { padding:24px 24px 0; position:relative; }
+.modal-close { position:absolute; top:16px; right:20px; background:none; border:none; color:#94a3b8; font-size:1.5rem; cursor:pointer; }
+.modal-close:hover { color:#f1f5f9; }
+.modal-body { padding:20px 24px 24px; }
+.modal-title { font-size:1.4rem; font-weight:700; color:#f1f5f9; margin-bottom:4px; }
+.modal-subtitle { font-size:0.9rem; color:#64748b; margin-bottom:16px; }
+.modal-price { font-size:2rem; font-weight:700; color:#60a5fa; margin:16px 0; }
+.modal-price .annual { font-size:1rem; color:#64748b; font-weight:400; }
+.modal-section { margin-bottom:20px; }
+.modal-section h3 { font-size:0.9rem; font-weight:600; color:#94a3b8; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px; }
+.modal-section ul { list-style:none; }
+.modal-section li { padding:6px 0; color:#e2e8f0; font-size:0.9rem; border-bottom:1px solid rgba(255,255,255,0.03); display:flex; align-items:flex-start; gap:8px; }
+.modal-section li::before { content:"✓"; color:#22c55e; font-weight:700; }
+.modal-section li:last-child { border-bottom:none; }
+.modal-tags { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; }
+.modal-tag { padding:3px 10px; border-radius:12px; font-size:0.75rem; }
+.modal-link { display:inline-block; padding:10px 20px; background:linear-gradient(135deg,#60a5fa,#a78bfa); color:#fff; border-radius:8px; text-decoration:none; font-weight:600; font-size:0.9rem; margin-top:8px; transition:opacity 0.2s; }
+.modal-link:hover { opacity:0.9; }
+
+@media (max-width:768px) { header h1 { font-size:1.8rem; } .controls { flex-direction:column; align-items:stretch; } .search-box { max-width:none; } .cards-grid { grid-template-columns:1fr; } }
+
+footer { text-align:center; padding:32px 0; color:#475569; font-size:0.8rem; margin-top:24px; border-top:1px solid rgba(255,255,255,0.05); }
+.no-results { text-align:center; padding:60px 20px; color:#64748b; font-size:1rem; }
+.no-results-icon { font-size:3rem; margin-bottom:12px; display:block; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>🤖 AI 产品订阅定价追踪器</h1>
+    <p>主流 AI 产品订阅价格对比，帮你找到最合适的 AI 工具</p>
+  </header>
+
+  <div class="stats-bar" id="statsBar">
+    <div class="stat-card"><div class="stat-value" id="statTotal">0</div><div class="stat-label">产品总数</div></div>
+    <div class="stat-card"><div class="stat-value" id="statMin">$0</div><div class="stat-label">最低月费</div></div>
+    <div class="stat-card"><div class="stat-value" id="statMax">$0</div><div class="stat-label">最高月费</div></div>
+    <div class="stat-card"><div class="stat-value" id="statAvg">$0</div><div class="stat-label">平均月费</div></div>
+    <div class="stat-card"><div class="stat-value" id="statFree">0</div><div class="stat-label">免费层级</div></div>
+  </div>
+
+  <div class="controls">
+    <div class="filter-group" id="filterGroup">
+      <button class="filter-btn active" data-filter="all">全部</button>
+      <button class="filter-btn" data-filter="chat">AI聊天</button>
+      <button class="filter-btn" data-filter="code">AI编程</button>
+      <button class="filter-btn" data-filter="search">AI搜索</button>
+      <button class="filter-btn" data-filter="image">AI图像</button>
+      <button class="filter-btn" data-filter="video">AI视频</button>
+      <button class="filter-btn" data-filter="music">AI音乐</button>
+      <button class="filter-btn" data-filter="voice">AI语音</button>
+      <button class="filter-btn" data-filter="office">AI办公</button>
+      <button class="filter-btn" data-filter="writing">AI写作</button>
+    </div>
+    <div class="search-box">
+      <input type="text" id="searchInput" placeholder="搜索产品...">
+    </div>
+    <div class="view-toggle">
+      <button class="view-btn active" data-view="cards">📋 卡片</button>
+      <button class="view-btn" data-view="table">📊 表格</button>
+    </div>
+  </div>
+
+  <div id="cardsView" class="cards-grid"></div>
+  <div id="tableView" class="table-view">
+    <table class="pricing-table">
+      <thead><tr><th>产品</th><th>公司</th><th>类型</th><th>月费</th><th>年费</th><th>核心功能</th></tr></thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+  <div id="noResults" class="no-results" style="display:none;"><span class="no-results-icon">🔍</span>未找到匹配的产品</div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <button class="modal-close" id="modalClose">&times;</button>
+    </div>
+    <div class="modal-body" id="modalContent"></div>
+  </div>
+</div>
+
+<footer>
+  <p>AI 产品订阅定价追踪器 | 数据更新于 2026-06-25 | 价格仅供参考，以各产品官网为准</p>
+</footer>
+
+<script>
+const pricingData = [
+  { id:1, name:"ChatGPT Plus", company:"OpenAI", type:"chat", monthly:20, annual:240, annualDiscount:0, features:["无限GPT-4.1消息","高级数据分析","DALL-E图像生成","自定义GPT","优先访问新功能"], freeTier:"有限免费额度", website:"https://chat.openai.com", description:"OpenAI旗舰聊天产品，提供最强通用AI对话能力" },
+  { id:2, name:"ChatGPT Pro", company:"OpenAI", type:"chat", monthly:200, annual:2400, annualDiscount:0, features:["o3 Pro深度推理","o4-mini高级推理","200刀/月API额度","无限高级语音","优先支持"], freeTier:"无", website:"https://chat.openai.com", description:"面向专业用户的顶级AI能力，包含所有推理模型" },
+  { id:3, name:"Claude Pro", company:"Anthropic", type:"chat", monthly:20, annual:240, annualDiscount:0, features:["5倍消息量 vs 免费版","优先带宽","提前访问新功能","更高文件上传限制"], freeTier:"有限免费额度", website:"https://claude.ai", description:"Anthropic Claude系列，以安全性和长上下文著称" },
+  { id:4, name:"Claude Team", company:"Anthropic", type:"chat", monthly:25, annual:300, annualDiscount:0, features:["所有Pro功能","团队共享","管理控制台","成员管理","增强安全"], freeTier:"无", website:"https://claude.ai", description:"面向团队的Claude方案，支持协作和企业级管理" },
+  { id:5, name:"Cursor Pro", company:"Cursor", type:"code", monthly:20, annual:192, annualDiscount:20, features:["500 fast requests/月","无限slow requests","GPT-4/Claude模型","代码补全","终端集成"], freeTier:"2000字符/月免费", website:"https://cursor.com", description:"AI原生代码编辑器，深度集成GPT-4和Claude" },
+  { id:6, name:"Cursor Business", company:"Cursor", type:"code", monthly:40, annual:384, annualDiscount:20, features:["所有Pro功能","团队管理","SSO/SAML","高级分析","企业支持"], freeTier:"无", website:"https://cursor.com", description:"Cursor企业版，支持团队协作和SSO集成" },
+  { id:7, name:"GitHub Copilot", company:"GitHub", type:"code", monthly:10, annual:100, annualDiscount:17, features:["代码补全","Copilot Chat","PR描述生成","多IDE支持"], freeTier:"学生/开源免费", website:"https://github.com/copilot", description:"GitHub与OpenAI合作的AI编程助手，最成熟的代码补全工具" },
+  { id:8, name:"GitHub Copilot Pro", company:"GitHub", type:"code", monthly:19, annual:190, annualDiscount:17, features:["所有Copilot功能","优先访问新模型","更高请求限制","团队功能"], freeTier:"无", website:"https://github.com/copilot", description:"GitHub Copilot高级版，优先访问新模型和更高限制" },
+  { id:9, name:"Perplexity Pro", company:"Perplexity", type:"search", monthly:20, annual:200, annualDiscount:17, features:["300+ Pro searches/天","GPT-4/Claude模型","文件上传分析","Copilot深度搜索"], freeTier:"5次Pro搜索/4小时", website:"https://perplexity.ai", description:"AI驱动的搜索引擎，提供带来源的实时答案" },
+  { id:10, name:"Perplexity Enterprise", company:"Perplexity", type:"search", monthly:40, annual:400, annualDiscount:17, features:["所有Pro功能","团队管理","SSO","API访问","企业级安全"], freeTier:"无", website:"https://perplexity.ai", description:"Perplexity企业版，支持团队管理和API集成" },
+  { id:11, name:"Midjourney Basic", company:"Midjourney", type:"image", monthly:10, annual:96, annualDiscount:20, features:["3.3小时GPU/月","标准图像生成","商业授权","Discord访问"], freeTier:"无免费版", website:"https://midjourney.com", description:"AI图像生成标杆，以艺术质量和社区活跃著称" },
+  { id:12, name:"Midjourney Pro", company:"Midjourney", type:"image", monthly:60, annual:576, annualDiscount:20, features:["15小时GPU/月","隐身模式","快速GPU","并行生成","最高质量"], freeTier:"无", website:"https://midjourney.com", description:"Midjourney专业版，适合高频创作者和商业用途" },
+  { id:13, name:"Runway Gen-3", company:"Runway", type:"video", monthly:15, annual:144, annualDiscount:20, features:["625 credits/月","Gen-3视频生成","无限图像生成","绿幕/抠图"], freeTier:"125 credits免费", website:"https://runwayml.com", description:"AI视频生成先锋，Gen-3支持10秒高清视频生成" },
+  { id:14, name:"Runway Unlimited", company:"Runway", type:"video", monthly:95, annual:912, annualDiscount:20, features:["无限视频生成","所有Gen-3功能","API访问","团队协作","最高质量输出"], freeTier:"无", website:"https://runwayml.com", description:"Runway无限版，适合专业视频制作团队" },
+  { id:15, name:"Suno Pro", company:"Suno", type:"music", monthly:10, annual:96, annualDiscount:20, features:["500首/月","商业授权","API访问","优先队列","更高音质"], freeTier:"10首/天免费", website:"https://suno.ai", description:"AI音乐生成，支持从文本提示生成完整歌曲" },
+  { id:16, name:"ElevenLabs Starter", company:"ElevenLabs", type:"voice", monthly:5, annual:50, annualDiscount:17, features:["30K字符/月","基础语音克隆","29种语言","API访问"], freeTier:"10K字符/月免费", website:"https://elevenlabs.io", description:"AI语音合成和克隆，最逼真的TTS服务之一" },
+  { id:17, name:"Notion AI", company:"Notion", type:"office", monthly:10, annual:96, annualDiscount:20, features:["无限AI使用","总结长文档","写作辅助","翻译","头脑风暴"], freeTier:"有限免费额度", website:"https://notion.so", description:"Notion内置AI，在文档和知识库中直接调用AI能力" },
+  { id:18, name:"Jasper", company:"Jasper", type:"writing", monthly:49, annual:468, annualDiscount:20, features:["品牌声音","SEO优化","50+模板","团队协作","多语言"], freeTier:"7天免费试用", website:"https://jasper.ai", description:"面向营销团队的AI写作平台，专注品牌一致性" },
+  { id:19, name:"Gamma Plus", company:"Gamma", type:"office", monthly:8, annual:80, annualDiscount:17, features:["无限AI创建","高级主题","自定义字体","分析","导出"], freeTier:"400 AI积分免费", website:"https://gamma.app", description:"AI演示文稿生成，从文本快速创建精美幻灯片" },
+  { id:20, name:"豆包 Pro", company:"字节跳动", type:"chat", monthly:0, annual:0, annualDiscount:0, features:["豆包2.1 Pro","编程+Agent能力","抖音生态集成","长上下文","免费层级"], freeTier:"大部分功能免费", website:"https://doubao.com", description:"字节跳动豆包大模型，2.1 Pro版编程和Agent能力大幅提升" },
+  { id:21, name:"文心一言会员", company:"百度", type:"chat", monthly:0, annual:0, annualDiscount:0, features:["文心4.0模型","优先响应","文件上传","插件市场"], freeTier:"基础功能免费", website:"https://yiyan.baidu.com", description:"百度文心大模型，中文理解和生成能力领先" },
+  { id:22, name:"通义千问 Plus", company:"阿里巴巴", type:"chat", monthly:0, annual:0, annualDiscount:0, features:["通义千问2.5","代码生成","文档分析","多模态","钉钉集成"], freeTier:"基础功能免费", website:"https://tongyi.aliyun.com", description:"阿里通义千问，企业级AI助手，深度集成阿里生态" }
+];
+
+let currentFilter = 'all';
+let currentView = 'cards';
+let searchQuery = '';
+
+function getFilteredData() {
+  let data = pricingData;
+  if (currentFilter !== 'all') { data = data.filter(p => p.type === currentFilter); }
+  if (searchQuery) { const q = searchQuery.toLowerCase(); data = data.filter(p => p.name.toLowerCase().includes(q) || p.company.toLowerCase().includes(q)); }
+  return data;
+}
+
+function renderStats() {
+  const data = getFilteredData();
+  const paid = data.filter(p => p.monthly > 0);
+  const avg = paid.length ? Math.round(paid.reduce((a,p) => a + p.monthly, 0) / paid.length) : 0;
+  const min = paid.length ? Math.min(...paid.map(p => p.monthly)) : 0;
+  const max = paid.length ? Math.max(...paid.map(p => p.monthly)) : 0;
+  const free = data.filter(p => p.freeTier && p.freeTier.includes('免费')).length;
+  document.getElementById('statTotal').textContent = data.length;
+  document.getElementById('statMin').textContent = min ? '$'+min : '-';
+  document.getElementById('statMax').textContent = max ? '$'+max : '-';
+  document.getElementById('statAvg').textContent = avg ? '$'+avg : '-';
+  document.getElementById('statFree').textContent = free;
+}
+
+function renderCards() {
+  const data = getFilteredData();
+  const container = document.getElementById('cardsView');
+  if (!data.length) { container.innerHTML = ''; document.getElementById('noResults').style.display = 'block'; return; }
+  document.getElementById('noResults').style.display = 'none';
+  const typeMap = { chat:'AI聊天', code:'AI编程', search:'AI搜索', image:'AI图像', video:'AI视频', music:'AI音乐', voice:'AI语音', office:'AI办公', writing:'AI写作' };
+  const typeClassMap = { chat:'type-chat', code:'type-code', search:'type-search', image:'type-image', video:'type-video', music:'type-music', voice:'type-voice', office:'type-office', writing:'type-writing' };
+  container.innerHTML = data.map(p => {
+    const priceText = p.monthly === 0 ? '免费' : '$'+p.monthly+'<span>/月</span>';
+    const annualText = p.annual ? '年付 $'+p.annual+(p.annualDiscount ? ' (省'+p.annualDiscount+'%)' : '') : '';
+    return '<div class="pricing-card" onclick="openModal('+p.id+')">'+
+      '<div class="card-header">'+
+        '<div><div class="card-name">'+p.name+'</div><div class="card-company">'+p.company+'</div></div>'+
+        '<span class="card-type '+typeClassMap[p.type]+'">'+typeMap[p.type]+'</span>'+
+      '</div>'+
+      '<div class="card-price">'+priceText+'</div>'+
+      '<div class="card-features">'+p.features.slice(0,3).join(' · ')+(p.features.length>3?'...':'')+'</div>'+
+      '<div class="card-footer">'+
+        '<span class="card-annual">'+annualText+'</span>'+
+        '<span class="card-link">查看详情 →</span>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+
+function renderTable() {
+  const data = getFilteredData();
+  const tbody = document.getElementById('tableBody');
+  if (!data.length) { tbody.innerHTML = ''; document.getElementById('noResults').style.display = 'block'; return; }
+  document.getElementById('noResults').style.display = 'none';
+  const typeMap = { chat:'AI聊天', code:'AI编程', search:'AI搜索', image:'AI图像', video:'AI视频', music:'AI音乐', voice:'AI语音', office:'AI办公', writing:'AI写作' };
+  const typeClassMap = { chat:'type-chat', code:'type-code', search:'type-search', image:'type-image', video:'type-video', music:'type-music', voice:'type-voice', office:'type-office', writing:'type-writing' };
+  tbody.innerHTML = data.map(p => {
+    const priceText = p.monthly === 0 ? '免费' : '$'+p.monthly;
+    const annualText = p.annual === 0 ? '免费' : '$'+p.annual+(p.annualDiscount ? '/年' : '');
+    return '<tr onclick="openModal('+p.id+')">'+
+      '<td><div class="td-name">'+p.name+'</div><div class="td-company">'+p.company+'</div></td>'+
+      '<td class="td-company">'+p.company+'</td>'+
+      '<td><span class="td-type '+typeClassMap[p.type]+'">'+typeMap[p.type]+'</span></td>'+
+      '<td class="td-price">'+priceText+'</td>'+
+      '<td>'+annualText+'</td>'+
+      '<td>'+p.features.slice(0,2).join(' · ')+'</td>'+
+    '</tr>';
+  }).join('');
+}
+
+function renderAll() {
+  renderStats();
+  if (currentView === 'cards') { renderCards(); }
+  else { renderTable(); }
+}
+
+function openModal(id) {
+  const p = pricingData.find(x => x.id === id);
+  if (!p) return;
+  const typeMap = { chat:'AI聊天', code:'AI编程', search:'AI搜索', image:'AI图像', video:'AI视频', music:'AI音乐', voice:'AI语音', office:'AI办公', writing:'AI写作' };
+  const typeClassMap = { chat:'type-chat', code:'type-code', search:'type-search', image:'type-image', video:'type-video', music:'type-music', voice:'type-voice', office:'type-office', writing:'type-writing' };
+  const priceText = p.monthly === 0 ? '免费' : '$'+p.monthly+'/月';
+  const annualText = p.annual === 0 ? '' : '年付 $'+p.annual+(p.annualDiscount ? ' (省'+p.annualDiscount+'%)' : '');
+  document.getElementById('modalContent').innerHTML = 
+    '<div class="modal-title">'+p.name+'</div>'+
+    '<div class="modal-subtitle">'+p.company+' · '+typeMap[p.type]+'</div>'+
+    '<div class="modal-tags"><span class="modal-tag '+typeClassMap[p.type]+'">'+typeMap[p.type]+'</span>'+(p.freeTier && p.freeTier.includes('免费') ? '<span class="modal-tag type-chat">有免费版</span>' : '')+'</div>'+
+    '<div class="modal-price">'+priceText+(annualText ? '<span class="annual"> · '+annualText+'</span>' : '')+'</div>'+
+    '<div class="modal-section"><h3>产品描述</h3><p style="color:#e2e8f0;font-size:0.9rem;line-height:1.6;">'+p.description+'</p></div>'+
+    '<div class="modal-section"><h3>核心功能</h3><ul>'+p.features.map(f => '<li>'+f+'</li>').join('')+'</ul></div>'+
+    '<div class="modal-section"><h3>免费层级</h3><p style="color:#e2e8f0;font-size:0.9rem;">'+p.freeTier+'</p></div>'+
+    '<a href="'+p.website+'" target="_blank" class="modal-link">访问官网 →</a>';
+  document.getElementById('modalOverlay').classList.add('active');
+}
+
+document.getElementById('modalClose').onclick = function() { document.getElementById('modalOverlay').classList.remove('active'); };
+document.getElementById('modalOverlay').onclick = function(e) { if (e.target === document.getElementById('modalOverlay')) document.getElementById('modalOverlay').classList.remove('active'); };
+
+document.getElementById('filterGroup').addEventListener('click', function(e) {
+  if (e.target.classList.contains('filter-btn')) {
+    document.querySelectorAll('.filter-btn').forEach(function(b) { b.classList.remove('active'); });
+    e.target.classList.add('active');
+    currentFilter = e.target.dataset.filter;
+    renderAll();
+  }
+});
+
+document.querySelectorAll('.view-btn').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.view-btn').forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    currentView = btn.dataset.view;
+    if (currentView === 'cards') { document.getElementById('cardsView').style.display = 'grid'; document.getElementById('tableView').classList.remove('active'); }
+    else { document.getElementById('cardsView').style.display = 'none'; document.getElementById('tableView').classList.add('active'); }
+    renderAll();
+  });
+});
+
+document.getElementById('searchInput').addEventListener('input', function(e) {
+  searchQuery = e.target.value.trim();
+  renderAll();
+});
+
+renderAll();
+</script>
+</body>
+</html>
