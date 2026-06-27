@@ -286,6 +286,9 @@ document.getElementById('filterGroup').addEventListener('click', function(e) {
     document.querySelectorAll('.filter-btn').forEach(function(b) { b.classList.remove('active'); });
     e.target.classList.add('active');
     currentFilter = e.target.dataset.filter;
+    // 重置搜索框，避免分类+搜索叠加导致空结果
+    searchQuery = '';
+    document.getElementById('searchInput').value = '';
     renderAll();
   }
 });
